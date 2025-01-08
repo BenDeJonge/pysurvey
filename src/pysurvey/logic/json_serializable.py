@@ -1,12 +1,17 @@
 # Standard library.
 from pathlib import Path
-from typing import Self, Union
+from typing import Any, Self, Union
 import os
 
-import msgspec
+import json
+from dataclasses import dataclass, asdict
+from abc import abstractmethod
+
+# import msgspec
 
 
-class JsonSerializable(msgspec.Struct):
+@dataclass
+class JsonSerializable:
     """
     A base class for a `JSON` (de)serializable object.
 
@@ -59,7 +64,7 @@ class JsonSerializable(msgspec.Struct):
 
     def __repr__(self) -> str:
         """Get a `str` representation."""
-        return self.to_json().decode(encoding="utf-8")
+        return self.to_json()
 
     # --------------------------------------------------------------------------
     # D E S E R I A L I Z E R S
@@ -67,29 +72,35 @@ class JsonSerializable(msgspec.Struct):
     @classmethod
     def read_json(cls, path: Union[Path, str, bytes]) -> Self:
         """Parse a file in `JSON` format to a class instance."""
-        with open(path, "rb") as f:
-            return cls.from_json(f.read())
+        with open(path, "r") as fp:
+            return cls.from_json(json=json.load(fp=fp))
 
     @classmethod
-    def from_json(cls, json: bytes) -> Self:
-        """Parse a `dict` in `JSON` format to a class instance."""
-        return msgspec.json.decode(json, type=cls)
+    @abstractmethod
+    def from_json(cls, json: dict[str, Any]) -> Self:
+        """
+        Parse a `dict` in `JSON` format to a class instance.
+
+        Implement this on a class-by-class basis.
+        """
+        ...
 
     # --------------------------------------------------------------------------
     # S E R I A L I Z E R S
     # --------------------------------------------------------------------------
-    def to_json(self, indent: int = 4) -> bytes:
+    def to_json(self, indent: int = 4) -> str:
         """
         Write the instance to a `dict` in `JSON` format.
         Non-initialized fields are ignored, as these cannot be deserialized.
         """
-        return msgspec.json.format(buf=msgspec.json.encode(self), indent=indent)
+        return json.dumps(asdict(self))
+        # return msgspec.json.format(buf=msgspec.json.encode(self), indent=indent)
 
     def write_json(
         self,
         path: Union[Path, str],
         create: bool = True,
-        indent: int = 4,
+        indent: str = "\t",
     ) -> None:
         """
         Write the instance to a file in `JSON` format.
@@ -127,5 +138,5 @@ class JsonSerializable(msgspec.Struct):
                     "Cannot create the parent directory", folder
                 )
         # Start writing, using the name attribute for `Enum` keys.
-        with open(path, "wb") as f:
+        with open(path, "w") as f:
             f.write(self.to_json(indent=indent))

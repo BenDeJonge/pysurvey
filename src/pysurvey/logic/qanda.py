@@ -1,11 +1,10 @@
 """`qanda`: q&a, question and answer"""
 
+from dataclasses import dataclass
 from math import inf
-from typing import Generic, Protocol, Self, Sequence, TypeVar
+from typing import Any, Generic, Protocol, Self, Sequence, TypeVar
 
 from .json_serializable import JsonSerializable
-
-import msgspec
 
 
 Numeric = TypeVar("Numeric", bound=int | float)
@@ -18,6 +17,7 @@ class HasMessage(Protocol):
     msg: str
 
 
+@dataclass
 class OpenRange(JsonSerializable, Generic[Numeric]):
     """
     Behaves like a `range`: inclusive at lower end, exclusive at higher end.
@@ -37,8 +37,20 @@ class OpenRange(JsonSerializable, Generic[Numeric]):
     def __contains__(self, item: Numeric) -> bool:
         return self.lower <= item < self.higher
 
+    @classmethod
+    def from_json(cls, json: dict[str, Any]) -> Self:
+        """
+        Parse a `dict` in `JSON` format to a class instance.
+        """
+        return OpenRange(
+            msg=json["msg"],
+            lower=json["lower"],
+            higher=json["higher"],
+        )
 
-class Response(msgspec.Struct, Generic[Numeric]):
+
+@dataclass
+class Response(JsonSerializable, Generic[Numeric]):
     msg: str
     score: Numeric
 
@@ -55,8 +67,19 @@ class Response(msgspec.Struct, Generic[Numeric]):
     def __eq__(self, other: Self) -> bool:
         return self.score == other.score
 
+    @classmethod
+    def from_json(cls, json: dict[str, Any]) -> Self:
+        """
+        Parse a `dict` in `JSON` format to a class instance.
+        """
+        return Response(
+            msg=json["msg"],
+            score=json["score"],
+        )
 
-class Question(msgspec.Struct):
+
+@dataclass
+class Question(JsonSerializable):
     msg: str
     responses: Sequence[Response]
     # def __init__(self, msg: str, responses: Sequence[Response]):
@@ -74,3 +97,15 @@ class Question(msgspec.Struct):
             lower = min(response.score, lower)
             higher = max(response.score, higher)
         return OpenRange(msg="", lower=lower, higher=higher)
+
+    @classmethod
+    def from_json(cls, json: dict[str, Any]) -> Self:
+        """
+        Parse a `dict` in `JSON` format to a class instance.
+        """
+        return Question(
+            msg=json["msg"],
+            responses=[
+                Response.from_json(response) for response in json["responses"]
+            ],
+        )

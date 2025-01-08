@@ -1,5 +1,6 @@
+from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Generic, Sequence
+from typing import Any, Generic, Self, Sequence
 from .qanda import Numeric, Question, OpenRange, Response
 
 from .json_serializable import JsonSerializable
@@ -16,6 +17,7 @@ class RangeError(Exception): ...
 class SurveyError(Exception): ...
 
 
+@dataclass
 class Survey(JsonSerializable, Generic[Numeric]):
     questions: Sequence[Question]
     ranges: Sequence[OpenRange]
@@ -103,6 +105,18 @@ class Survey(JsonSerializable, Generic[Numeric]):
             lower += range_.lower
             higher += range_.higher
         return OpenRange(msg="", lower=lower, higher=higher)
+
+    @classmethod
+    def from_json(cls, json: dict[str, Any]) -> Self:
+        """
+        Parse a `dict` in `JSON` format to a class instance.
+        """
+        return Survey(
+            questions=[
+                Question.from_json(question) for question in json["questions"]
+            ],
+            ranges=[OpenRange.from_json(range_) for range_ in json["ranges"]],
+        )
 
 
 def make_dummy_survey() -> Survey:
